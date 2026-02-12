@@ -1,6 +1,6 @@
 # scatter.py
 
-Python library for building bots on the [Scatter](https://scatter.starforge.games) chat platform.
+Python library for building bots on the [Scatter](https://scatter.chat) chat platform.
 
 Requires Python 3.11+ and [aiohttp](https://docs.aiohttp.org/).
 
