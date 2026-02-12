@@ -21,6 +21,7 @@ from .models import (
     Member,
     MemberRoleInfo,
     Message,
+    MessagePreview,
     Reaction,
     Role,
     RolePermission,

@@ -158,12 +158,14 @@ For operations not wrapped by convenience methods (channel management, role CRUD
 
 ```python
 await client.http.create_channel(space_id, "bot-logs", topic="Automated logs")
+await client.http.update_channel(space_id, channel_id, name="new-name", topic="Updated topic")
 await client.http.delete_channel(space_id, channel_id)
 await client.http.create_role(space_id, "Moderator", color=0x3498db, hoist=True)
 await client.http.update_role(space_id, role_id, name="Senior Mod")
 await client.http.delete_role(space_id, role_id)
 await client.http.set_member_roles(space_id, user_id, [role_id_1, role_id_2])
 await client.http.kick_member(space_id, user_id)
+pins = await client.http.get_pins(space_id, channel_id)
 await client.http.pin_message(space_id, channel_id, message_id)
 await client.http.unpin_message(space_id, channel_id, message_id)
 await client.http.upload_file(space_id, channel_id, "/path/to/image.png")
@@ -212,17 +214,19 @@ Events listed as `dict` give you the raw WebSocket payload. The rest are parsed 
 
 All models are dataclasses with `from_dict()` class methods:
 
-- **`Message`**: `id`, `channel_id`, `content`, `author` (User), `space_id`, `embeds`, `attachments`, `reactions`, `created_at`, `edited_at`, `reply_to`
-- **`User`**: `id`, `username`, `display_name`, `avatar_url`, `presence`, `subscription_tier`
-- **`Member`**: same as User plus `roles` (list of MemberRoleInfo) and `joined_at`
-- **`Space`**: `id`, `name`, `description`, `icon_url`, `owner_id`, `is_public`. Optional lazy-loaded fields (default `None`): `channels`, `members`, `roles`, `categories`, `custom_emojis` — use `fetch_channels()`, `fetch_members()`, etc. to load these
-- **`Channel`**: `id`, `space_id`, `name`, `channel_type`, `topic`, `position`, `category_id`
+- **`Message`**: `id`, `channel_id`, `content`, `author` (User), `space_id`, `embeds`, `attachments`, `reactions`, `replied_message` (MessagePreview), `created_at`, `edited_at`, `reply_to`, `ping_author`
+- **`MessagePreview`**: `id`, `author` (User), `content` — lightweight reply context
+- **`User`**: `id`, `username`, `display_name`, `avatar_url`, `presence`, `custom_status`, `subscription_tier`, `is_admin`
+- **`Member`**: same as User plus `roles` (list of MemberRoleInfo), `joined_at`, `is_admin`
+- **`Space`**: `id`, `name`, `description`, `icon_url`, `owner_id`, `is_public`, `created_at`, `updated_at`. Optional lazy-loaded fields (default `None`): `channels`, `members`, `roles`, `categories`, `custom_emojis` — use `fetch_channels()`, `fetch_members()`, etc. to load these
+- **`Channel`**: `id`, `space_id`, `name`, `channel_type`, `topic`, `position`, `category_id`, `created_at`, `updated_at`
+- **`ChannelCategory`**: `id`, `space_id`, `name`, `position`, `created_at`
 - **`Role`**: `id`, `space_id`, `name`, `color`, `position`, `permissions`, `hoist`, `is_default`, `inherits_from`
-- **`Attachment`**: `id`, `filename`, `content_type`, `size_bytes`, `url`, `width`, `height`
-- **`Embed`**: `id`, `url`, `embed_type`, `title`, `description`, `thumbnail_url`, `video_url`
+- **`Attachment`**: `id`, `filename`, `original_filename`, `content_type`, `size_bytes`, `url`, `width`, `height`
+- **`Embed`**: `id`, `url`, `embed_type`, `title`, `description`, `thumbnail_url`, `site_name`, `color`, `image_url`, `video_url`, `provider_name`
 - **`Reaction`**: `emoji`, `count`, `user_reacted`
-- **`CustomEmoji`**: `id`, `space_id`, `name`, `image_url`
-- **`Invite`**: `id`, `space_id`, `code`, `max_uses`, `use_count`, `url`, `expires_at`
+- **`CustomEmoji`**: `id`, `space_id`, `name`, `image_url`, `uploaded_by`, `created_at`
+- **`Invite`**: `id`, `space_id`, `code`, `created_by`, `max_uses`, `use_count`, `is_expired`, `url`, `expires_at`, `created_at`
 
 ## Enums
 

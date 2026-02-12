@@ -68,6 +68,7 @@ class Member:
     presence: str = "offline"
     custom_status: Optional[str] = None
     subscription_tier: str = "free"
+    is_admin: bool = False
     roles: list[MemberRoleInfo] = field(default_factory=list)
     joined_at: Optional[datetime] = None
 
@@ -81,6 +82,7 @@ class Member:
             presence=d.get("presence", "offline"),
             custom_status=d.get("custom_status"),
             subscription_tier=d.get("subscription_tier", "free"),
+            is_admin=d.get("is_admin", False),
             roles=[MemberRoleInfo.from_dict(r) for r in d.get("roles", [])],
             joined_at=_parse_dt(d.get("joined_at")),
         )
@@ -134,6 +136,8 @@ class Channel:
     topic: Optional[str] = None
     category_id: Optional[str] = None
     position: int = 0
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     @classmethod
     def from_dict(cls, d: dict) -> Channel:
@@ -145,6 +149,8 @@ class Channel:
             topic=d.get("topic"),
             category_id=d.get("category_id"),
             position=d.get("position", 0),
+            created_at=_parse_dt(d.get("created_at")),
+            updated_at=_parse_dt(d.get("updated_at")),
         )
 
 
@@ -154,6 +160,7 @@ class ChannelCategory:
     space_id: str
     name: str
     position: int = 0
+    created_at: Optional[datetime] = None
 
     @classmethod
     def from_dict(cls, d: dict) -> ChannelCategory:
@@ -162,6 +169,7 @@ class ChannelCategory:
             space_id=d.get("space_id", ""),
             name=d["name"],
             position=d.get("position", 0),
+            created_at=_parse_dt(d.get("created_at")),
         )
 
 
@@ -237,6 +245,23 @@ class Reaction:
 
 
 @dataclass
+class MessagePreview:
+    """A lightweight preview of a replied-to message."""
+
+    id: str
+    author: User
+    content: str
+
+    @classmethod
+    def from_dict(cls, d: dict) -> MessagePreview:
+        return cls(
+            id=d["id"],
+            author=User.from_dict(d.get("author", {})),
+            content=d.get("content", ""),
+        )
+
+
+@dataclass
 class Message:
     id: str
     channel_id: str
@@ -250,10 +275,12 @@ class Message:
     embeds: list[Embed] = field(default_factory=list)
     attachments: list[Attachment] = field(default_factory=list)
     reactions: list[Reaction] = field(default_factory=list)
+    replied_message: Optional[MessagePreview] = None
 
     @classmethod
     def from_dict(cls, d: dict, *, space_id: str | None = None) -> Message:
         author_data = d.get("author", {})
+        replied = d.get("replied_message")
         return cls(
             id=d["id"],
             channel_id=d.get("channel_id", ""),
@@ -271,6 +298,7 @@ class Message:
             reactions=[
                 Reaction.from_dict(r) for r in d.get("reactions", [])
             ],
+            replied_message=MessagePreview.from_dict(replied) if replied else None,
         )
 
 
@@ -303,6 +331,8 @@ class Space:
     icon_url: Optional[str] = None
     owner_id: Optional[str] = None
     is_public: bool = False
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     channels: Optional[list[Channel]] = None
     members: Optional[list[Member]] = None
     roles: Optional[list[Role]] = None
@@ -323,6 +353,8 @@ class Space:
             icon_url=d.get("icon_url"),
             owner_id=d.get("owner_id"),
             is_public=d.get("is_public", False),
+            created_at=_parse_dt(d.get("created_at")),
+            updated_at=_parse_dt(d.get("updated_at")),
             channels=[Channel.from_dict(c) for c in channels] if channels is not None else None,
             members=[Member.from_dict(m) for m in members] if members is not None else None,
             roles=[Role.from_dict(r) for r in roles] if roles is not None else None,
@@ -339,6 +371,7 @@ class Invite:
     created_by: str = ""
     max_uses: Optional[int] = None
     use_count: int = 0
+    is_expired: bool = False
     expires_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
     url: str = ""
@@ -355,6 +388,7 @@ class Invite:
             created_by=created_by,
             max_uses=d.get("max_uses"),
             use_count=d.get("use_count", 0),
+            is_expired=d.get("is_expired", False),
             expires_at=_parse_dt(d.get("expires_at")),
             created_at=_parse_dt(d.get("created_at")),
             url=d.get("url", ""),
