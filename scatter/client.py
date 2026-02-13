@@ -94,9 +94,14 @@ class Client:
         *,
         base_url: str | None = None,
         ws_url: str | None = None,
+        auto_subscribe: bool = True,
     ):
         self._token = token
         self.user_id: str | None = None
+        self._auto_subscribe = auto_subscribe
+
+        # Tracks which text channels the bot is subscribed to per space
+        self._space_channels: dict[str, set[str]] = {}
 
         http_kwargs: dict[str, Any] = {}
         gw_kwargs: dict[str, Any] = {}
@@ -164,6 +169,12 @@ class Client:
         # Special handling for ready event
         if mapped == "ready":
             self.user_id = data.get("user_id")
+            if self._auto_subscribe:
+                await self._auto_subscribe_all()
+
+        # Handle auto-subscribe reactions to channel/permission changes
+        if self._auto_subscribe:
+            await self._handle_auto_subscribe(event_type, data)
 
         # Parse the raw data into model objects
         parsed = parse_event(event_type, data)
@@ -182,6 +193,84 @@ class Client:
                 await listener(parsed)
             except Exception:
                 log.exception("Error in listener for %s", handler_name)
+
+    # ── Auto-Subscribe ───────────────────────────────────────
+
+    async def _auto_subscribe_all(self):
+        """Subscribe to all spaces and their text channels on connect."""
+        try:
+            spaces = await self.fetch_spaces()
+            for space in spaces:
+                await self.subscribe_space(space.id)
+                channel_ids: set[str] = set()
+                if space.channels:
+                    for ch in space.channels:
+                        if ch.channel_type == "text":
+                            await self.subscribe_channel(ch.id)
+                            channel_ids.add(ch.id)
+                            log.debug("Auto-subscribed to #%s in %s", ch.name, space.name)
+                self._space_channels[space.id] = channel_ids
+            log.info(
+                "Auto-subscribed to %d space(s), %d channel(s)",
+                len(spaces),
+                sum(len(chs) for chs in self._space_channels.values()),
+            )
+        except Exception:
+            log.exception("Failed to auto-subscribe")
+
+    async def _handle_auto_subscribe(self, event_type: str, data: dict):
+        """React to channel/permission/role changes by updating subscriptions."""
+        try:
+            if event_type == "channel_created":
+                ch = data.get("channel", data)
+                space_id = ch.get("space_id", data.get("space_id", ""))
+                ch_type = ch.get("channel_type", "text")
+                ch_id = ch.get("id", "")
+                if ch_type == "text" and ch_id:
+                    await self.subscribe_channel(ch_id)
+                    self._space_channels.setdefault(space_id, set()).add(ch_id)
+                    log.debug("Auto-subscribed to new channel %s", ch.get("name", ch_id))
+
+            elif event_type == "channel_deleted":
+                ch_id = data.get("channel_id", "")
+                space_id = data.get("space_id", "")
+                if ch_id:
+                    await self.unsubscribe_channel(ch_id)
+                    if space_id in self._space_channels:
+                        self._space_channels[space_id].discard(ch_id)
+                    log.debug("Auto-unsubscribed from deleted channel %s", ch_id)
+
+            elif event_type in (
+                "channel_permissions_updated",
+                "role_updated",
+                "member_roles_updated",
+            ):
+                # Permissions may have changed — re-fetch channels for
+                # this space and reconcile subscriptions
+                space_id = data.get("space_id", "")
+                if space_id:
+                    await self._reconcile_channels(space_id)
+
+        except Exception:
+            log.exception("Error in auto-subscribe handler for %s", event_type)
+
+    async def _reconcile_channels(self, space_id: str):
+        """Re-fetch channels for a space and subscribe/unsubscribe as needed."""
+        channels = await self.fetch_channels(space_id)
+        current_ids = {ch.id for ch in channels if ch.channel_type == "text"}
+        tracked_ids = self._space_channels.get(space_id, set())
+
+        # Subscribe to channels we gained access to
+        for ch_id in current_ids - tracked_ids:
+            await self.subscribe_channel(ch_id)
+            log.debug("Auto-subscribed to channel %s (permission change)", ch_id)
+
+        # Unsubscribe from channels we lost access to
+        for ch_id in tracked_ids - current_ids:
+            await self.unsubscribe_channel(ch_id)
+            log.debug("Auto-unsubscribed from channel %s (permission change)", ch_id)
+
+        self._space_channels[space_id] = current_ids
 
     # ── Connection ──────────────────────────────────────────────
 

@@ -17,22 +17,12 @@ client = scatter.Client(token)
 
 @client.event
 async def on_ready(data):
-    """Called when the bot successfully authenticates via WebSocket."""
+    """Called when the bot successfully authenticates via WebSocket.
+
+    The client automatically subscribes to all spaces and text channels,
+    so there's no need to do it manually here.
+    """
     print(f"Bot is ready! User ID: {client.user_id}")
-
-    # Fetch all spaces the bot is in
-    spaces = await client.fetch_spaces()
-    for space in spaces:
-        print(f"  Space: {space.name} ({space.id})")
-
-        # Subscribe to space-level events (member joins, role changes, etc.)
-        await client.subscribe_space(space.id)
-
-        # Subscribe to each text channel for messages
-        for channel in space.channels:
-            if channel.channel_type == "text":
-                await client.subscribe_channel(channel.id)
-                print(f"    Subscribed to #{channel.name}")
 
 
 @client.event
