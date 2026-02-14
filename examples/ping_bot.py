@@ -26,23 +26,17 @@ async def on_ready(data):
 
 
 @client.event
-async def on_message(message: scatter.Message):
+async def on_message(ctx: scatter.MessageContext):
     """Called when a new message is received in a subscribed channel."""
     # Ignore our own messages
-    if message.author.id == client.user_id:
+    if ctx.author.id == client.user_id:
         return
 
-    if message.content == "!ping":
-        await client.send_message(
-            message.space_id, message.channel_id, "Pong!"
-        )
+    if ctx.content == "!ping":
+        await ctx.send("Pong!")
 
-    elif message.content == "!hello":
-        await client.send_message(
-            message.space_id,
-            message.channel_id,
-            f"Hello, {message.author.display_name}!",
-        )
+    elif ctx.content == "!hello":
+        await ctx.reply(f"Hello, {ctx.author.display_name}!")
 
 
 @client.event

@@ -6,6 +6,7 @@ import asyncio
 import logging
 from typing import Any, Callable, Coroutine
 
+from .context import MessageContext
 from .events import EVENT_MAP, parse_event
 from .gateway import Gateway
 from .http import HTTPClient
@@ -114,6 +115,7 @@ class Client:
         self._gateway = Gateway(token, self._dispatch, **gw_kwargs)
         self._event_handlers: dict[str, Callable[..., Coroutine]] = {}
         self._listeners: dict[str, list[Callable[..., Coroutine]]] = {}
+        self._channel_space_map: dict[str, str] = {}  # channel_id -> space_id
 
     # ── Event Registration ──────────────────────────────────────
 
@@ -176,8 +178,19 @@ class Client:
         if self._auto_subscribe:
             await self._handle_auto_subscribe(event_type, data)
 
+        # Inject space_id from our channel→space mapping when the server
+        # doesn't include it (e.g. new_message, typing, reaction events).
+        if "channel_id" in data and "space_id" not in data:
+            space_id = self._channel_space_map.get(data["channel_id"])
+            if space_id:
+                data["space_id"] = space_id
+
         # Parse the raw data into model objects
         parsed = parse_event(event_type, data)
+
+        # Wrap message events in a MessageContext for convenience methods
+        if event_type in ("new_message", "dm_new_message") and isinstance(parsed, Message):
+            parsed = MessageContext(self, parsed)
 
         # Call the @client.event handler
         handler = self._event_handlers.get(handler_name)
@@ -345,7 +358,12 @@ class Client:
     async def fetch_spaces(self) -> list[Space]:
         """Fetch all spaces the bot is a member of."""
         data = await self.http.get_spaces()
-        return [Space.from_dict(s) for s in data]
+        spaces = [Space.from_dict(s) for s in data]
+        for space in spaces:
+            if space.channels:
+                for ch in space.channels:
+                    self._channel_space_map[ch.id] = space.id
+        return spaces
 
     async def fetch_space(self, space_id: str) -> Space:
         """Fetch a single space by ID.
@@ -360,7 +378,10 @@ class Client:
     async def fetch_channels(self, space_id: str) -> list[Channel]:
         """Fetch all channels in a space."""
         data = await self.http.get_channels(space_id)
-        return [Channel.from_dict(c) for c in data]
+        channels = [Channel.from_dict(c) for c in data]
+        for ch in channels:
+            self._channel_space_map[ch.id] = space_id
+        return channels
 
     async def fetch_members(self, space_id: str) -> list[Member]:
         """Fetch all members in a space."""
