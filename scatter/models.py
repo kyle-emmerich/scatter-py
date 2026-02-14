@@ -286,7 +286,7 @@ class Message:
             channel_id=d.get("channel_id", ""),
             content=d.get("content", ""),
             author=User.from_dict(author_data),
-            space_id=space_id,
+            space_id=space_id or d.get("space_id"),
             created_at=_parse_dt(d.get("created_at")),
             edited_at=_parse_dt(d.get("edited_at")),
             reply_to=d.get("reply_to"),

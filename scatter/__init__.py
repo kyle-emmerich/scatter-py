@@ -3,6 +3,7 @@
 __version__ = "0.1.0"
 
 from .client import Client, Typing
+from .context import MessageContext
 from .errors import (
     AuthenticationError,
     Forbidden,
