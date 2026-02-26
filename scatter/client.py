@@ -419,10 +419,22 @@ class Client:
         content: str,
         *,
         reply_to: str | None = None,
+        override_name: str | None = None,
+        override_avatar_url: str | None = None,
     ) -> Message:
-        """Send a message to a channel."""
+        """Send a message to a channel.
+
+        Bot-only parameters ``override_name`` and ``override_avatar_url``
+        let a bot send messages that display with a custom name and avatar
+        (e.g. for bridge or webhook-style impersonation).
+        """
         data = await self.http.send_message(
-            space_id, channel_id, content, reply_to=reply_to
+            space_id,
+            channel_id,
+            content,
+            reply_to=reply_to,
+            override_name=override_name,
+            override_avatar_url=override_avatar_url,
         )
         return Message.from_dict(data, space_id=space_id)
 

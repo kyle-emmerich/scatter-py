@@ -155,12 +155,18 @@ class HTTPClient:
         *,
         reply_to: str | None = None,
         attachment_ids: list[str] | None = None,
+        override_name: str | None = None,
+        override_avatar_url: str | None = None,
     ) -> dict:
         body: dict = {"content": content}
         if reply_to:
             body["reply_to"] = reply_to
         if attachment_ids:
             body["attachment_ids"] = attachment_ids
+        if override_name is not None:
+            body["override_name"] = override_name
+        if override_avatar_url is not None:
+            body["override_avatar_url"] = override_avatar_url
         return await self.request(
             "POST",
             f"/spaces/{space_id}/channels/{channel_id}/messages",
@@ -298,6 +304,11 @@ class HTTPClient:
 
     async def get_categories(self, space_id: str) -> list[dict]:
         return await self.request("GET", f"/spaces/{space_id}/categories")
+
+    async def create_category(self, space_id: str, name: str) -> dict:
+        return await self.request(
+            "POST", f"/spaces/{space_id}/categories", json={"name": name}
+        )
 
     # ── Emojis ──────────────────────────────────────────────────
 

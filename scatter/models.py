@@ -276,6 +276,8 @@ class Message:
     attachments: list[Attachment] = field(default_factory=list)
     reactions: list[Reaction] = field(default_factory=list)
     replied_message: Optional[MessagePreview] = None
+    override_name: Optional[str] = None
+    override_avatar_url: Optional[str] = None
 
     @classmethod
     def from_dict(cls, d: dict, *, space_id: str | None = None) -> Message:
@@ -299,6 +301,8 @@ class Message:
                 Reaction.from_dict(r) for r in d.get("reactions", [])
             ],
             replied_message=MessagePreview.from_dict(replied) if replied else None,
+            override_name=d.get("override_name"),
+            override_avatar_url=d.get("override_avatar_url"),
         )
 
 
