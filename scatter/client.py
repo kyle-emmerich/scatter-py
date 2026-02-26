@@ -215,13 +215,16 @@ class Client:
             spaces = await self.fetch_spaces()
             for space in spaces:
                 await self.subscribe_space(space.id)
+                # Bulk-subscribe to all text channels in one WS message
+                await self.subscribe_space_channels(space.id)
+                # Fetch channel list so we can track IDs locally
+                channels = space.channels or await self.fetch_channels(space.id)
                 channel_ids: set[str] = set()
-                if space.channels:
-                    for ch in space.channels:
-                        if ch.channel_type == "text":
-                            await self.subscribe_channel(ch.id)
-                            channel_ids.add(ch.id)
-                            log.debug("Auto-subscribed to #%s in %s", ch.name, space.name)
+                for ch in channels:
+                    if ch.channel_type == "text":
+                        self._gateway.track_channel(ch.id)
+                        channel_ids.add(ch.id)
+                        log.debug("Auto-subscribed to #%s in %s", ch.name, space.name)
                 self._space_channels[space.id] = channel_ids
             log.info(
                 "Auto-subscribed to %d space(s), %d channel(s)",
@@ -320,6 +323,17 @@ class Client:
         self._gateway.untrack_channel(channel_id)
         await self._gateway.send(
             {"type": "unsubscribe", "channel_id": channel_id}
+        )
+
+    async def subscribe_space_channels(self, space_id: str):
+        """Subscribe to all text channels in a space in one operation.
+
+        This is much more efficient than subscribing to each channel
+        individually, as it avoids per-message rate limits on the server.
+        The server fetches all viewable text channels and subscribes to them.
+        """
+        await self._gateway.send(
+            {"type": "subscribe_space_channels", "space_id": space_id}
         )
 
     async def subscribe_space(self, space_id: str):

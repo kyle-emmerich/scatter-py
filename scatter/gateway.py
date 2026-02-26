@@ -79,13 +79,13 @@ class Gateway:
                 if event_type == "auth_ok":
                     log.info("Authenticated as user %s", data.get("user_id"))
                     # Re-subscribe to everything we were tracking
-                    for ch_id in self._subscribed_channels:
-                        await self.send(
-                            {"type": "subscribe", "channel_id": ch_id}
-                        )
                     for sp_id in self._subscribed_spaces:
                         await self.send(
                             {"type": "subscribe_space", "space_id": sp_id}
+                        )
+                        # Bulk re-subscribe to all channels in this space
+                        await self.send(
+                            {"type": "subscribe_space_channels", "space_id": sp_id}
                         )
                     await self._dispatch("auth_ok", data)
 
