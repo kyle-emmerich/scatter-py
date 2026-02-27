@@ -433,6 +433,7 @@ class Client:
         content: str,
         *,
         reply_to: str | None = None,
+        attachment_ids: list[str] | None = None,
         override_name: str | None = None,
         override_avatar_url: str | None = None,
     ) -> Message:
@@ -447,6 +448,7 @@ class Client:
             channel_id,
             content,
             reply_to=reply_to,
+            attachment_ids=attachment_ids,
             override_name=override_name,
             override_avatar_url=override_avatar_url,
         )
